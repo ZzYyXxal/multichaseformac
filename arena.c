@@ -12,8 +12,9 @@
  * limitations under the License.
  */
 #include "arena.h"
-
+#ifdef __linux__
 #include <linux/mempolicy.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,16 +47,18 @@ bool page_size_is_huge(size_t page_size) {
 }
 
 void print_page_size(size_t page_size, bool use_thp) {
+#ifdef __linux__
   FILE *f;
   size_t read;
   /* Big enough to fit UINT64_MAX + '\n' + '\0'. */
   char buf[22];
+#endif // __linux__
 
   if (!use_thp) {
     printf("page_size = %zu bytes\n", page_size);
     return;
   }
-
+#ifdef __linux__
   f = fopen("/sys/kernel/mm/transparent_hugepage/hpage_pmd_size", "r");
   if (!f) goto err;
 
@@ -74,8 +77,10 @@ err:
   perror(
       "page_size = <failed to read "
       "/sys/kernel/mm/transparent_hugepage/hpage_pmd_size>");
+#endif // __linux__
 }
 
+#ifdef __linux__
 static inline int mbind(void *addr, unsigned long len, int mode,
                         unsigned long *nodemask, unsigned long maxnode,
                         unsigned flags) {
@@ -144,6 +149,7 @@ static int get_page_size_flags(size_t page_size) {
   }
   return MAP_HUGETLB | (lg << MAP_HUGE_SHIFT);
 }
+#endif //__linux__
 
 /*
  * Reads a "state" file from sysfs at the given path, and returns the current
@@ -235,7 +241,11 @@ void *alloc_arena_mmap(size_t page_size, bool use_thp, size_t arena_size, int fd
   int flags;
 
   if (fd == -1)
+#ifdef __linux__
     flags = MAP_PRIVATE | MAP_ANONYMOUS | get_page_size_flags(page_size);
+#elif defined(__APPLE__)
+    flags = MAP_PRIVATE | MAP_ANON;
+#endif // __linux__
   else
     flags = MAP_SHARED;
 
@@ -246,6 +256,7 @@ void *alloc_arena_mmap(size_t page_size, bool use_thp, size_t arena_size, int fd
     exit(1);
   }
 
+#ifdef __linux__
   if (use_thp && fd == -1)
     check_thp_state();
 
@@ -264,6 +275,7 @@ void *alloc_arena_mmap(size_t page_size, bool use_thp, size_t arena_size, int fd
     arena_weighted_mbind(page_size, arena, arena_size, mbind_weights,
                          MAX_MEM_NODES);
   }
+#endif // __linux__
   return arena;
 }
 

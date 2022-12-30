@@ -11,9 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-CFLAGS=-std=gnu99 -g -O3 -fomit-frame-pointer -fno-unroll-loops -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wmissing-declarations -Wnested-externs -Wpointer-arith -W -Wno-unused-parameter -Werror -pthread -Wno-tautological-compare
-LDFLAGS=-g -O3 -static -pthread
-LDLIBS=-lrt -lm
+CFLAGS=-std=gnu99 -g -O3 -fomit-frame-pointer -fno-unroll-loops -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wmissing-declarations -Wnested-externs -Wpointer-arith -W -Wno-unused-parameter -pthread -Wno-tautological-compare
+LDFLAGS=-g -O3 -pthread
+LDLIBS=-lm
 
 ARCH ?= $(shell uname -m)
 
@@ -26,6 +26,13 @@ ifeq ($(ARCH),aarch64)
  endif
 endif
 
+UNAME := $(shell uname)
+ifneq ($(UNAMW), Darwin)
+CFLAGS := $(CFLAGS) -Werror
+LDFLAGS := $(LDFLAGS) -static
+LDLIBS := $(LDLIBS) -lrt
+endif
+
 EXE=multichase multiload fairness pingpong
 
 all: $(EXE)
@@ -36,9 +43,9 @@ clean:
 .c.s:
 	$(CC) $(CFLAGS) -S -c $<
 
-multichase: multichase.o permutation.o arena.o br_asm.o util.o
+multichase: multichase.o permutation.o arena.o br_asm.o util.o affinity.o random_r.o
 
-multiload: multiload.o permutation.o arena.o util.o
+multiload: multiload.o permutation.o arena.o util.o affinity.o random_r.o
 
 fairness: LDLIBS += -lm
 
@@ -51,10 +58,12 @@ depend:
 
 # DO NOT DELETE
 
-arena.o: arena.h
-multichase.o: cpu_util.h timer.h expand.h permutation.h arena.h util.h
-multiload.o: cpu_util.h timer.h expand.h permutation.h arena.h util.h
-permutation.o: permutation.h
+affinity.o: affinity.h
+random_r.o: random_r.h
+arena.o: arena.h random_r.h
+multichase.o: cpu_util.h timer.h expand.h permutation.h arena.h util.h random_r.h affinity.h
+multiload.o: cpu_util.h timer.h expand.h permutation.h arena.h util.h random_r.h affinity.h
+permutation.o: permutation.h random_r.h
 util.o: util.h
-fairness.o: cpu_util.h expand.h timer.h
-pingpong.o: cpu_util.h timer.h
+fairness.o: cpu_util.h expand.h timer.h random_r.h affinity.h
+pingpong.o: cpu_util.h timer.h random_r.h affinity.h

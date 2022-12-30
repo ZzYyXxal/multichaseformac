@@ -33,6 +33,10 @@
 #include "timer.h"
 #include "util.h"
 
+#ifdef __APPLE__
+#include "affinity.h"
+#endif // __APPLE__
+
 // The total memory, stride, and TLB locality have been chosen carefully for
 // the current generation of CPUs:
 //
@@ -435,10 +439,17 @@ static void *thread_start(void *data) {
     }
     CPU_ZERO(&cpus);
     CPU_SET(my_cpu, &cpus);
+#ifdef __linux__
     if (sched_setaffinity(0, sizeof(cpus), &cpus)) {
       perror("sched_setaffinity");
       exit(1);
     }
+#elif defined(__APPLE__)
+  if (pthread_setaffinity_np(pthread_self(), sizeof(cpus), &cpus)) {
+    perror("pthread_setaffinity_np");
+    exit(1);
+  }
+#endif // __linux__
   }
 
   // generate chases -- using a different mixer index for every
@@ -619,7 +630,9 @@ int main(int argc, char **argv) {
         }
         break;
       case 'H':
+#ifdef __linux__
         use_thp = true;
+#endif
         break;
       case 'M':
          use_malloc = true;
@@ -746,9 +759,11 @@ int main(int argc, char **argv) {
     fprintf(stderr, "-p page_size   backing page size to use (default %zu)\n",
             default_page_size);
     fprintf(stderr, "-f file        mmap memory using the provided file\n");
+#ifdef __linux__
     fprintf(stderr,
             "-H             use transparent hugepages (leave page size at "
             "default)\n");
+#endif
     fprintf(stderr,
             "-L             use longer chase\n");
     fprintf(stderr,
@@ -760,11 +775,13 @@ int main(int argc, char **argv) {
             "with nta)\n"
             "               default: %zu\n",
             DEF_CACHE_FLUSH);
+#ifdef __linux__
     fprintf(
         stderr,
         "-W mbind list  list of node:weight,... pairs for allocating memory\n"
         "               has no effect if -H flag is specified\n"
         "               0:10,1:90 weights it as 10%% on 0 and 90%% on 1\n");
+#endif
     fprintf(stderr, "-X             do not set thread affinity\n");
     fprintf(stderr, "-y             print timestamp in front of each line\n");
     exit(1);

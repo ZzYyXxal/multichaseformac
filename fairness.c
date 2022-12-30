@@ -26,6 +26,10 @@
 #include "expand.h"
 #include "timer.h"
 
+#ifdef __APPLE__
+#include "affinity.h"
+#endif // __APPLE__
+
 typedef unsigned atomic_t;
 
 typedef union {
@@ -72,10 +76,17 @@ static void *worker(void *_args) {
   cpu_set_t cpu;
   CPU_ZERO(&cpu);
   CPU_SET(args->x.cpu, &cpu);
+#ifdef __linux__
   if (sched_setaffinity(0, sizeof(cpu), &cpu)) {
     perror("sched_setaffinity");
     exit(1);
   }
+#elif defined(__APPLE__)
+  if (pthread_setaffinity_np(pthread_self(), sizeof(cpu), &cpu)) {
+    perror("pthread_setaffinity_np");
+    exit(1);
+  }
+#endif // __linux__
 
   wait_for_startup();
 

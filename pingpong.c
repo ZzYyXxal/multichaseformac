@@ -25,6 +25,10 @@
 #include "cpu_util.h"
 #include "timer.h"
 
+#ifdef __APPLE__
+#include "affinity.h"
+#endif // __APPLE__
+
 #define NR_SAMPLES (5)
 #define SAMPLE_US (250000)
 
@@ -62,10 +66,17 @@ typedef struct {
 
 static void common_setup(thread_args_t *args) {
   // move to our target cpu
+#ifdef __linux__
   if (sched_setaffinity(0, sizeof(cpu_set_t), &args->cpus)) {
     perror("sched_setaffinity");
     exit(1);
   }
+#elif defined(__APPLE__)
+  if (pthread_setaffinity_np(pthread_self(), sizeof(cpu), &cpu)) {
+    perror("pthread_setaffinity_np");
+    exit(1);
+  }
+#endif // __linux__
 
   // test if we're supposed to allocate the pingpong_mutex memory
   if (args->me == 0) {

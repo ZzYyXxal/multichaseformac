@@ -19,6 +19,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "random_r.h"
+
 typedef size_t perm_t;
 
 void gen_random_permutation(perm_t *perm, size_t nr, size_t base);

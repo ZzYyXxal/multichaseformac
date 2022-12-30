@@ -32,6 +32,10 @@
 #include "timer.h"
 #include "util.h"
 
+#ifdef __APPLE__
+#include "affinity.h"
+#endif // __APPLE__
+
 // The total memory, stride, and TLB locality have been chosen carefully for
 // the current generation of CPUs:
 //
@@ -676,10 +680,17 @@ static void *thread_start(void *data) {
     }
     CPU_ZERO(&cpus);
     CPU_SET(my_cpu, &cpus);
+#ifdef __linux__
     if (sched_setaffinity(0, sizeof(cpus), &cpus)) {
       perror("sched_setaffinity");
       exit(1);
     }
+#elif defined(__APPLE__)
+  if (pthread_setaffinity_np(pthread_self(), sizeof(cpus), &cpus)) {
+    perror("pthread_setaffinity_np");
+    exit(1);
+  }
+#endif // __linux__
   }
   if (args->x.run_test_type == RUN_CHASE) {
     // generate chases -- using a different mixer index for every
@@ -859,7 +870,9 @@ int main(int argc, char **argv) {
         }
         break;
       case 'H':
+#ifdef __linux__
         use_thp = true;
+#endif
         break;
       case 'l':
         memload_optarg = optarg;

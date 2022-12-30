@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "stdint.h": "c",
+        "errno.h": "c",
+        "random_r.h": "c",
+        "affinity.h": "c"
+    }
+}
